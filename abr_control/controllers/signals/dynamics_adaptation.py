@@ -151,7 +151,7 @@ class DynamicsAdaptation():
 
                 try:
                     # if the NengoLib is installed, use it
-                    # to optimize encoder placement
+                    # to optimize encoder placement 
                     import nengolib
                     if encoders is None:
                         self.adapt_ens[ii].encoders = (
@@ -181,14 +181,17 @@ class DynamicsAdaptation():
                 if function is not None and (
                         weights_file is None or weights_file is ''):
                     print("Using provided function to bootstrap learning")
-                    eval_points = Concatenate([
-                        nengo.dists.Choice([0]),
+                    #concatenates the below distribution classes. 
+                    eval_points = Concatenate([ #if not specified, sample everything within the area -1 to 1 uniformly. 
+                        nengo.dists.Choice([0]), #what is this? just 0? np choice returns 0.
                         nengo.dists.Choice([0]),
                         nengo.dists.Uniform(-1, 1),
                         nengo.dists.Uniform(-1, 1)])
+                    #eval_points.sample returns 4D array containing a value from each of the dists. 
+                    #for each neuron, evaluate all 4; for 1K neurons should give good coverage. 
                     self.conn_learn.append(
                         nengo.Connection(
-                            self.adapt_ens[ii],
+                            self.adapt_ens[ii],s
                             output,
                             learning_rule_type=nengo.PES(pes_learning_rate),
                             function=function,
@@ -275,7 +278,7 @@ class DynamicsAdaptation():
 
 
 
-        nengo.cache.DecoderCache().invalidate()
+        nengo.cache.DecoderCache().invalidate() # Remove all cache files. (DecoderCache stores all results into a file)
         if backend == 'nengo':
             self.sim = nengo.Simulator(self.nengo_model, dt=.001)
         elif backend == 'nengo_ocl':
