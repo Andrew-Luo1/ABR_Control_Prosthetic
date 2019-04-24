@@ -191,7 +191,7 @@ class DynamicsAdaptation():
                     #for each neuron, evaluate all 4; for 1K neurons should give good coverage. 
                     self.conn_learn.append(
                         nengo.Connection(
-                            self.adapt_ens[ii],s
+                            self.adapt_ens[ii],
                             output,
                             learning_rule_type=nengo.PES(pes_learning_rate),
                             function=function,

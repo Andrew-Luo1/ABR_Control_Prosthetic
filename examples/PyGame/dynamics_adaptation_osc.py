@@ -86,6 +86,7 @@ try:
                 input_signal=robot_config.scaledown('q', feedback['q']),
                 training_signal=ctrlr.training_signal)
 
+        #Gravity
         fake_gravity = np.array([[0, -9.81, 0, 0, 0, 0]]).T * 10.0
         g = np.zeros((robot_config.N_JOINTS, 1))
         for ii in range(robot_config.N_LINKS):
@@ -93,10 +94,11 @@ try:
             g += np.dot(J_links[ii](*pars).T, fake_gravity)
         u += g.squeeze()
 
+        #New target
         new_target = interface.get_mousexy()
         if new_target is not None:
             target_xyz[:2] = new_target
-        interface.set_target(target_xyz)
+        interface.set_target(target_xyz) #Only done for GUI purposes. 
 
         # apply the control signal, step the sim forward
         interface.send_forces(

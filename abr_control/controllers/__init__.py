@@ -4,5 +4,6 @@ from .damping import Damping
 from .floating import Floating
 from .joint import Joint
 from .osc import OSC
+from .neural_pd import NEURAL_PD
 from .resting_config import RestingConfig
 from .sliding import Sliding
