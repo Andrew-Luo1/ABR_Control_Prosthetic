@@ -14,6 +14,14 @@ interface.connect()
 #Open-close 2 times a sec; doesn't work well.
 sine_func = (lambda t: abs(180*np.sin(0.5*np.pi*t)))
 
+def normalize_val(val):
+	#Expected input: 4D
+	#Clip btwn -180 to 180
+	val = np.clip(val,a_min= -180,a_max= 180)
+
+	#Divide by 180. 
+	return val/180
+
 #step function; 1 times a sec. 
 def step_func(t):
 	#open-close every second. 
@@ -50,7 +58,7 @@ target_path = []
 times = []
 
 #Initiate controller
-ctrlr = NEURAL_PD(kp = 5, kd = 0.7) #if kp = 5, everything
+ctrlr = NEURAL_PD(kp = 5, kd = 0.7, neural=True, adapt=True) #if kp = 5, everything
 #up to 180/5 = 37 degrees will result in max (255) force applied.  
 
 #Adaptive term
@@ -76,15 +84,31 @@ try:
 		prev_target = target
 		target = target_func(cur_target, time.time()-start_time)
 
+
 		if feedback != False:
-			u = ctrlr.generate_simple(
-				q=feedback["q"], 
-				dq=feedback["dq"], 
-				target=target, 
-				d_target=target-prev_target
+			u = 180*ctrlr.generate_neural(
+				q=normalize_val(feedback["q"]), 
+				dq=normalize_val(feedback["dq"]), 
+				target=normalize_val(target), 
+				d_target=normalize_val(target-prev_target)
 				)
+			#Motor cannot move if u <50. Because of this, give some debounce space.
+			for i in range(len(u)):
+				if u[i] > 0.5 and abs(u[i]) < 50:
+					u[i] = 50
+				elif u[i] < 0.5 and abs(u[i]) < 50:
+					u[i] = -50
+					
+			# u = ctrlr.generate_simple(
+			# q=feedback["q"], 
+			# dq=feedback["dq"], 
+			# target=target, 
+			# d_target=target-prev_target
+			# )
 
 			print(u)
+			print(feedback["q"])
+
 			#Build adaption into PID. 
 			# u += adapt.generate(input_signal = feedback["q"]/180, 
 			# 	training_signal=ctrlr.training_signal)
@@ -97,14 +121,14 @@ try:
 
 			#Send new forces
 			interface.send_forces(u)
-			actual_path.append(feedback["q"])
+			actual_path.append(np.copy(feedback["q"]))
 
 		else:
 			print("Read Failed.")
 			interface.send_forces([0,0,0,0])
 			actual_path.append(actual_path[-1]) #if read fails, plot previous position. 
 		
-		target_path.append(target)
+		target_path.append(np.copy(target))
 		times.append(time.time())
 
 		# print(time.time()-prev_time)
@@ -115,19 +139,23 @@ finally:
 	cur_date = datetime.now()
 	cur_date = cur_date.timetuple()
 
-	folder_name = "test_results/"
+	folder_name = "../../test_results/"
 	test_name = "adapting" 
-	test_time = "-{}-{}:{}.csv".format(cur_date[2],cur_date[3],cur_date[4])
+	test_time = "-{}-{}:{}".format(cur_date[2],cur_date[3],cur_date[4])
 
-	file_name = folder_name + test_name + test_time
+	file_name1 = folder_name + test_name + test_time
+	# file_name2 = folder_name + "target" + test_name + test_time
+
+	np.save(file_name1,np.array([actual_path, target_path, times]))
+	# np.save(file_name2,np.array(target_path))
+	# with open(file_name, 'w') as csvfile:
+	#     spamwriter = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+	#     for i in range(len(actual_path)):
+	# 	    spamwriter.writerow([str(actual_path[i]), str(target_path[i])])
 
 
-	with open(file_name, 'w') as csvfile:
-	    spamwriter = csv.writer(csvfile, delimiter=' ',
-	                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-	    for i in range(len(actual_path)):
-		    spamwriter.writerow([str(actual_path[i]), str(target_path[i])])
-
+	interface.get_feedback()
+	interface.send_forces([0,0,0,0])
 
 	interface.disconnect()
 	print("Arm control stopped!")
