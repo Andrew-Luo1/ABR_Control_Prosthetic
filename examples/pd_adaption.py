@@ -60,9 +60,7 @@ target_path = []
 times = []
 
 #Initiate controller
-ctrlr = NEURAL_PD(kp = 5, kd = 1.5, neural=True, adapt=True, neuron_model="LIF",pes_learning_rate=1e-1) 
-#if kp = 5, everything
-#up to 180/5 = 37 degrees will result in max (255) force applied.  
+ctrlr = NEURAL_PD(kp = 5, kd = 1.5, neural=True, adapt=True, neuron_model="LIF",pes_learning_rate=1e-4)   
 
 
 try:
@@ -95,27 +93,14 @@ try:
 					u[i] = 50
 				elif u[i] < 0.5 and abs(u[i]) < 50:
 					u[i] = -50
-					
+			
+			# For generic PD control:		
 			# u = ctrlr.generate_simple(
 			# q=feedback["q"], 
 			# dq=feedback["dq"], 
 			# target=target, 
 			# d_target=target-prev_target
 			# )
-
-			# print(u)
-			# print(feedback["q"])
-			# print(target)
-
-			#Build adaption into PID. 
-			# u += adapt.generate(input_signal = feedback["q"]/180, 
-			# 	training_signal=ctrlr.training_signal)
-
-			#New Target
-			# prev_target = target
-
-			# target = target_func(cur_target, time.time()-start_time)
-			# target_time = time.time()
 
 			#Send new forces
 			interface.send_forces(u)

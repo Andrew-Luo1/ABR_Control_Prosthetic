@@ -10,11 +10,6 @@ class PROSTHETIC_HAND():
     and overhead of connection / disconnection etc for each
     of the different systems that can be controlled.
 
-    Parameters
-    ----------
-    robot_config : class instance
-        contains all relevant information about the arm
-        such as: number of joints, number of links, mass information etc.
     """
 
     def __init__(self, dt=0.001, num_motors = 4, u_controllers = 2):
@@ -43,7 +38,6 @@ class PROSTHETIC_HAND():
 
             #sometimes read fails.
             if self.safe_read(cur_port, i):
-                # print(self.cur_vals)
                 if int(self.cur_vals[2]) == 1:
                     self.serial_coms[0] = cur_port
                     cur_port.write("0\n".encode()) #reset arduino SM. 
@@ -69,11 +63,9 @@ class PROSTHETIC_HAND():
                 # cur_port.write("0\n".encode())
                 if read_val != []:
                     self.cur_vals = read_val
-                    # self.arduino_state[port_index] = 0;
                     return True
             except:
                 cur_port.write("0\n".encode())
-                # self.arduino_state[port_index] = 0;
 
         return False
 
@@ -83,7 +75,7 @@ class PROSTHETIC_HAND():
             self.arduino_state[port_index] = 0;
 
         elif cur_state == 0:
-            cur_port.write("1111\n".encode()) #set to write mode. Note that doing this will mess up serial buffer. 
+            cur_port.write("1111\n".encode()) #set to write mode. Note that doing this will change ard state 
             self.arduino_state[port_index] = 1;
 
         else:
@@ -105,24 +97,16 @@ class PROSTHETIC_HAND():
             An array of joint torques [Nm]
             form: [int, int, int, int]
         """
-        # print(self.arduino_state)
 
         motors = [0]*2
         motors[0] = u[:len(u)//2]
         motors[1] = u[len(u)//2:]
-        # print(motors)
-        # print(len(self.serial_coms))
         
         for i in range(len(self.serial_coms)):
-            # if self.arduino_state[i] == 0:
-            #     self.toggle_arduino_state(self.serial_coms[i], 0, i)
             motors[i] = np.round(motors[i])
             motors[i] = [int(x) for x in motors[i]]
 
             zero_padded = [str(speed).zfill(4) for speed in motors[i]]
-            # print(self.arduino_state)
-            # print(str(str(zero_padded[0]) + str(zero_padded[1])))
-            # print(str(zero_padded[0]) + str(zero_padded[1]) + "\n")
             self.serial_coms[i].write(str(str(zero_padded[0]) + str(zero_padded[1]) + "\n").encode())
 
 
@@ -135,10 +119,6 @@ class PROSTHETIC_HAND():
 
         vals = [0]*self.u_controllers
         for i in range(len(self.serial_coms)): 
-
-            # if self.arduino_state[i] == 1:
-            #     self.toggle_arduino_state(self.serial_coms[i], 1, i)
-
             if self.safe_read(self.serial_coms[i], i): 
                 vals[i] = (self.cur_vals)
             else:
