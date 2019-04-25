@@ -47,11 +47,9 @@ class PROSTHETIC_HAND():
                 if int(self.cur_vals[2]) == 1:
                     self.serial_coms[0] = cur_port
                     cur_port.write("0\n".encode()) #reset arduino SM. 
-                    # self.arduino_state[0] = 0
                 else:
                     self.serial_coms[1] = cur_port
                     cur_port.write("0\n".encode())
-                    # self.arduino_state[0] = 0
 
             else:
                 return False
@@ -113,15 +111,18 @@ class PROSTHETIC_HAND():
         motors[0] = u[:len(u)//2]
         motors[1] = u[len(u)//2:]
         # print(motors)
+        # print(len(self.serial_coms))
         
         for i in range(len(self.serial_coms)):
             # if self.arduino_state[i] == 0:
             #     self.toggle_arduino_state(self.serial_coms[i], 0, i)
+            motors[i] = np.round(motors[i])
+            motors[i] = [int(x) for x in motors[i]]
 
             zero_padded = [str(speed).zfill(4) for speed in motors[i]]
             # print(self.arduino_state)
             # print(str(str(zero_padded[0]) + str(zero_padded[1])))
-            
+            # print(str(zero_padded[0]) + str(zero_padded[1]) + "\n")
             self.serial_coms[i].write(str(str(zero_padded[0]) + str(zero_padded[1]) + "\n").encode())
 
 

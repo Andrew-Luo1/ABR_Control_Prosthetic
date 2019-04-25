@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import csv
 
+test_dur = 1.5*60
+
 #TODO: init adaption part
 interface = PROSTHETIC_HAND()
 interface.connect()
@@ -16,10 +18,10 @@ sine_func = (lambda t: abs(180*np.sin(0.5*np.pi*t)))
 
 def normalize_val(val):
 	#Expected input: 4D
+	#Angle ranges from approx. 0 to 180 degrees.
+	#dAngle values are sometimes neg. Range from -180 to 180 
 	#Clip btwn -180 to 180
-	val = np.clip(val,a_min= -180,a_max= 180)
-
-	#Divide by 180. 
+	val = np.clip(val,a_min= -180,a_max= 180) 
 	return val/180
 
 #step function; 1 times a sec. 
@@ -50,7 +52,7 @@ def target_func(my_func, t):
 	return np.array([my_func(t)]*interface.num_motors)
 
 
-cur_target = step_func_2
+cur_target = sine_func
 
 #For tracking
 actual_path = []
@@ -58,16 +60,11 @@ target_path = []
 times = []
 
 #Initiate controller
-ctrlr = NEURAL_PD(kp = 5, kd = 0.7, neural=True, adapt=True) #if kp = 5, everything
+ctrlr = NEURAL_PD(kp = 5, kd = 1.5, neural=True, adapt=True, neuron_model="LIF",pes_learning_rate=1e-1) 
+#if kp = 5, everything
 #up to 180/5 = 37 degrees will result in max (255) force applied.  
 
-#Adaptive term
-# adapt = signals.PDAdaptation(
-#     n_input=interface.num_motors,
-#     n_output=interface.num_motors,
-#     pes_learning_rate=1e-4)
 
-#Lists to track data; write to a file
 try:
 
 	#For calculating the desired position. 
@@ -76,7 +73,7 @@ try:
 	prev_target = target #First time step will do nothing. 
 	# prev_time = time.time()
 
-	while True:
+	while time.time() - start_time < test_dur:
 		feedback = interface.get_feedback()
 
 		# print(time.time()-prev_time)
@@ -106,8 +103,9 @@ try:
 			# d_target=target-prev_target
 			# )
 
-			print(u)
-			print(feedback["q"])
+			# print(u)
+			# print(feedback["q"])
+			# print(target)
 
 			#Build adaption into PID. 
 			# u += adapt.generate(input_signal = feedback["q"]/180, 
@@ -129,30 +127,21 @@ try:
 			actual_path.append(actual_path[-1]) #if read fails, plot previous position. 
 		
 		target_path.append(np.copy(target))
-		times.append(time.time())
-
-		# print(time.time()-prev_time)
-		# prev_time = time.time()
+		times.append(time.time()-start_time)
 
 finally:
 	#Log results
 	cur_date = datetime.now()
 	cur_date = cur_date.timetuple()
 
-	folder_name = "../../test_results/"
-	test_name = "adapting" 
+	folder_name = "../../test_results/PESRates/"
+	test_name = "e1-1" 
 	test_time = "-{}-{}:{}".format(cur_date[2],cur_date[3],cur_date[4])
 
 	file_name1 = folder_name + test_name + test_time
 	# file_name2 = folder_name + "target" + test_name + test_time
 
 	np.save(file_name1,np.array([actual_path, target_path, times]))
-	# np.save(file_name2,np.array(target_path))
-	# with open(file_name, 'w') as csvfile:
-	#     spamwriter = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-	#     for i in range(len(actual_path)):
-	# 	    spamwriter.writerow([str(actual_path[i]), str(target_path[i])])
-
 
 	interface.get_feedback()
 	interface.send_forces([0,0,0,0])

@@ -16,7 +16,7 @@ class NEURAL_PD():
     """
 
     #By default, do nothing. 
-    def __init__(self, kp=0, kd=0, neural=False, adapt = False, num_motors=4, pes_learning_rate=1e-4):
+    def __init__(self, kp=0, kd=0, neural=False, adapt = False, num_motors=4, neuron_model=False, pes_learning_rate=1e-4):
         #TODO
         self.kp = kp
         self.kd = kd
@@ -24,18 +24,18 @@ class NEURAL_PD():
         self.output = np.zeros(num_motors)
         self.adapt = adapt
         self.pes_learning_rate = pes_learning_rate
+        self.neuron_model = neuron_model
 
         if neural == True: 
-            model = nengo.Network(label="PID testing")
-
-            # Kp = 0.8
-            # Kd = 0.4
-            # dt = 0.001
-
+            model = nengo.Network(label="Adaptive Controller")
             tau_rc =  0.02 #TODO: Check if this is in ms or s.
             tau_ref = 0.002
-            lif_model = nengo.LIF(tau_rc=tau_rc, tau_ref=tau_ref) #lif model object.
-
+            if self.neuron_model == "RELU":
+                cur_model = nengo.RectifiedLinear()
+            elif self.neuron_model == "LIF":
+                cur_model = nengo.LIF(tau_rc=tau_rc, tau_ref=tau_ref) #lif model object.
+            elif self.neuron_model == "LIFRate":
+                cur_model = nengo.LIFRate(tau_rc=tau_rc, tau_ref=tau_ref) #lif model object.
 
             def output_func(t, x):
                 self.output = np.copy(x)
@@ -57,7 +57,6 @@ class NEURAL_PD():
                 input_target = nengo.Node(input_func_target, size_in=num_motors, size_out=num_motors)
                 input_d_target = nengo.Node(input_func_d_target, size_in=num_motors, size_out=num_motors)
 
-                PID_Ens = []
                 pes_learning_rate = 1e-4
                 
                 #Adaptive component
@@ -65,7 +64,7 @@ class NEURAL_PD():
                     adapt_ens = nengo.Ensemble(
                             n_neurons=1000, dimensions=num_motors,
                             radius=1.5,
-                            neuron_type=nengo.LIF())
+                            neuron_type=cur_model)
 
                     learn_conn = nengo.Connection(
                             adapt_ens,
@@ -75,10 +74,10 @@ class NEURAL_PD():
                 for i in range(num_motors): #list of dictionaries
                     # Create the neuronal ensemble; 1k per layer? 
                 #     A = nengo.Ensemble(1000, dimensions=1, radius=1.5) #This is tester
-                    inverter = nengo.Ensemble(500, dimensions=2, radius=1.5, neuron_type = lif_model)
-                    proportional = nengo.Ensemble(500, dimensions=1, radius=1.5, neuron_type = lif_model) 
-                    derivative = nengo.Ensemble(500, dimensions=1, radius=1.5, neuron_type = lif_model)
-                    control_signal = nengo.Ensemble(500, dimensions=1, radius=1.5, neuron_type = lif_model)
+                    inverter = nengo.Ensemble(500, dimensions=2, radius=1.5, neuron_type = cur_model)
+                    proportional = nengo.Ensemble(500, dimensions=1, radius=1.5, neuron_type = cur_model) 
+                    derivative = nengo.Ensemble(500, dimensions=1, radius=1.5, neuron_type = cur_model)
+                    control_signal = nengo.Ensemble(500, dimensions=1, radius=1.5, neuron_type = cur_model)
                          
                     
                     # invert terms that will be subtracted. 
@@ -100,7 +99,7 @@ class NEURAL_PD():
                     
                     if self.adapt:
                         # adapt connections
-                        nengo.Connection(input_q[i], adapt_ens, function=lambda x: np.zeros(num_motors))
+                        nengo.Connection(input_q[i], adapt_ens, function=lambda x: np.zeros(num_motors), synapse=None)
                         nengo.Connection(control_signal, learn_conn.learning_rule[i], transform=-1, synapse=None)
                     
                     # Nodes to access outputs. 
@@ -173,7 +172,7 @@ class NEURAL_PD():
 
         u = proportional + derivative
 
-        u[1] = 0;
+        # u[1] = 0;
         # u[2] = 0;
         # u[0] = 0;
 
